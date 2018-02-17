@@ -3,17 +3,16 @@ module Feedback exposing (Config, State, Submission(..), config, init, view)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events as E
-import Json.Decode as Json
 
 
-type Config stateChangeMsg submitMsg cancelMsg
+type Config msg
     = Config
         { id : String
         , prompt : String
         , footnote : Maybe String
-        , onStateChange : State -> stateChangeMsg
-        , onSubmit : Submission -> submitMsg
-        , onCancel : cancelMsg
+        , onStateChange : State -> msg
+        , onSubmit : Submission -> msg
+        , onCancel : msg
         , negativeReasons : List Reason
         }
 
@@ -22,12 +21,12 @@ config :
     { id : String
     , prompt : String
     , footnote : Maybe String
-    , onStateChange : State -> stateChangeMsg
-    , onSubmit : Submission -> submitMsg
-    , onCancel : cancelMsg
+    , onStateChange : State -> msg
+    , onSubmit : Submission -> msg
+    , onCancel : msg
     , negativeReasons : List Reason
     }
-    -> Config stateChangeMsg submitMsg cancelMsg
+    -> Config msg
 config { id, prompt, footnote, onStateChange, onSubmit, onCancel, negativeReasons } =
     Config
         { id = id
@@ -83,7 +82,13 @@ buttonNegative state onStateChange =
                 PositiveSelected ->
                     ""
 
-                _ ->
+                Unselected ->
+                    ""
+
+                NegativeSelected _ ->
+                    "selected"
+
+                SelectingNegative ->
                     "selected"
 
         nextState =
@@ -127,7 +132,7 @@ radio onStateChange maybeSelectedReason reason =
         nextState =
             NegativeSelected reason
     in
-    label [ class "feedback__reasons__radio" ]
+    label [ class "feedback__reasons__label" ]
         [ input [ type_ "radio", checked isChecked, E.onClick (onStateChange nextState) ] []
         , text reason
         ]
@@ -162,30 +167,43 @@ maybeFootnote maybeNote =
             div [ class "feedback__footnote" ] []
 
 
-submitCancel : State -> (State -> stateChangeMsg) -> (Submission -> submissionMsg) -> cancelMsg -> Html msg
+createSubmission : State -> Maybe Submission
+createSubmission state =
+    case state of
+        Unselected ->
+            Nothing
+
+        PositiveSelected ->
+            Just Positive
+
+        SelectingNegative ->
+            Nothing
+
+        NegativeSelected reason ->
+            Just (Negative reason)
+
+
+submitCancel : State -> (State -> msg) -> (Submission -> msg) -> msg -> Html msg
 submitCancel state onStateChange onSubmission onCancel =
     let
-        submitDisabled =
-            case state of
-                Unselected ->
-                    True
+        maybeSubmission =
+            createSubmission state
 
-                PositiveSelected ->
-                    False
+        submitBtnAttrs =
+            case maybeSubmission of
+                Just submission ->
+                    [ E.onClick (onSubmission submission) ]
 
-                SelectingNegative ->
-                    True
-
-                NegativeSelected ->
-                    False
+                Nothing ->
+                    [ disabled True ]
     in
     div [ class "feedback-submit" ]
         [ button [ E.onClick onCancel ] [ text "Cancel" ]
-        , button [ disabled submitDisbled, E.onClick () ] [ text "Submit" ]
+        , button submitBtnAttrs [ text "Submit" ]
         ]
 
 
-view : Config stateChangeMsg submitMsg cancelMsg -> State -> Html stateChangeMsg
+view : Config msg -> State -> Html msg
 view (Config { id, prompt, footnote, onStateChange, onSubmit, onCancel, negativeReasons }) state =
     div [ class "feedback" ]
         [ div [ class "feedback__prompt" ] [ text prompt ]

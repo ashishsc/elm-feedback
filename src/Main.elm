@@ -30,7 +30,7 @@ type Msg
     | FeedbackCancelled
 
 
-feedbackConfig : Feedback.Config Msg Msg Msg
+feedbackConfig : Feedback.Config Msg
 feedbackConfig =
     Feedback.config
         { id = "foo"
@@ -52,11 +52,17 @@ update msg model =
         FeedbackSubmitted submission ->
             case submission of
                 Positive ->
-                    ( { model | positiveSubmissions = model.positiveSubmissions + 1 }, Cmd.none )
+                    ( { model
+                        | positiveSubmissions = model.positiveSubmissions + 1
+                        , feedback = Feedback.init
+                      }
+                    , Cmd.none
+                    )
 
                 Negative reason ->
                     ( { model
                         | negativeReasonsGiven = reason :: model.negativeReasonsGiven
+                        , feedback = Feedback.init
                       }
                     , Cmd.none
                     )
@@ -69,8 +75,12 @@ view : Model -> Html Msg
 view model =
     div []
         [ Feedback.view feedbackConfig model.feedback
-        , div [ class "positive-submit-count" ] [ text <| toString model.positiveSubmissions ]
-        , div [ class "negative-submit-count" ] [ List.length model.negativeReasonsGiven |> toString |> text ]
+        , div [ class "positive-submit-count" ] [ text <| toString model.positiveSubmissions ++ " loved  pandas" ]
+        , div [ class "negative-submit-count" ]
+            [ List.length model.negativeReasonsGiven
+                |> toString
+                |> text
+            ]
         , ul [ class "negative-reasons-given" ] (List.map (\reason -> li [] [ text reason ]) model.negativeReasonsGiven)
         , div [ class "cancel-count" ] [ text <| toString model.timesCancelled ]
         ]
