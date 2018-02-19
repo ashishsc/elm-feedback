@@ -1,6 +1,6 @@
 module Main exposing (..)
 
-import Feedback exposing (Submission(..))
+import Feedback exposing (State(..), Submission(..))
 import Html exposing (..)
 import Html.Attributes exposing (..)
 
@@ -28,17 +28,23 @@ type Msg
     = FeedbackUpdated Feedback.State
     | FeedbackSubmitted Feedback.Submission
     | FeedbackCancelled
+    | ChooseReason Feedback.Reason
+    | SelectNegative
+    | SelectPositive
 
 
-feedbackConfig : Feedback.Config Msg
-feedbackConfig =
+feedbackConfig : Feedback.State -> Feedback.Config Msg
+feedbackConfig state =
     Feedback.config
         { id = "foo"
         , prompt = "Did you like the pandas?"
         , footnote = Just "Your feedback of the pandas will not be shared with the pandas"
-        , onStateChange = FeedbackUpdated
+        , chooseReason = ChooseReason
         , onSubmit = FeedbackSubmitted
         , onCancel = FeedbackCancelled
+        , selectNegative = SelectNegative
+        , selectPositive = SelectPositive
+        , state = state
         , negativeReasons = [ "Too many pandas", "Not enough pandas" ]
         }
 
@@ -70,11 +76,38 @@ update msg model =
         FeedbackCancelled ->
             ( { model | timesCancelled = model.timesCancelled + 1, feedback = Feedback.init }, Cmd.none )
 
+        ChooseReason r ->
+            ( { model | feedback = Feedback.NegativeSelected r }
+            , Cmd.none
+            )
+
+        SelectNegative ->
+            ( { model
+                | feedback =
+                    case model.feedback of
+                        PositiveSelected ->
+                            SelectingNegative
+
+                        SelectingNegative ->
+                            SelectingNegative
+
+                        NegativeSelected reason ->
+                            NegativeSelected reason
+
+                        Unselected ->
+                            SelectingNegative
+              }
+            , Cmd.none
+            )
+
+        SelectPositive ->
+            ( { model | feedback = PositiveSelected }, Cmd.none )
+
 
 view : Model -> Html Msg
 view model =
     div []
-        [ Feedback.view feedbackConfig model.feedback
+        [ Feedback.view (feedbackConfig model.feedback)
         , div [ class "positive-submit-count" ] [ text <| toString model.positiveSubmissions ++ " loved  pandas" ]
         , div [ class "negative-submit-count" ]
             [ List.length model.negativeReasonsGiven

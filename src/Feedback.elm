@@ -1,4 +1,4 @@
-module Feedback exposing (Config, State, Submission(..), config, init, view)
+module Feedback exposing (Config, Reason, State(..), Submission(..), config, init, view)
 
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -10,10 +10,13 @@ type Config msg
         { id : String
         , prompt : String
         , footnote : Maybe String
-        , onStateChange : State -> msg
-        , onSubmit : Submission -> msg
-        , onCancel : msg
+        , submit : Submission -> msg
+        , cancel : msg
+        , selectPositive : msg
+        , selectNegative : msg
         , negativeReasons : List Reason
+        , chooseReason : Reason -> msg
+        , state : State
         }
 
 
@@ -21,21 +24,27 @@ config :
     { id : String
     , prompt : String
     , footnote : Maybe String
-    , onStateChange : State -> msg
-    , onSubmit : Submission -> msg
-    , onCancel : msg
+    , submit : Submission -> msg
+    , cancel : msg
+    , selectPositive : msg
+    , selectNegative : msg
     , negativeReasons : List Reason
+    , chooseReason : Reason -> msg
+    , state : State
     }
     -> Config msg
-config { id, prompt, footnote, onStateChange, onSubmit, onCancel, negativeReasons } =
+config { id, prompt, footnote, submit, cancel, negativeReasons, state, selectPositive, selectNegative, chooseReason } =
     Config
         { id = id
         , prompt = prompt
         , footnote = footnote
-        , onStateChange = onStateChange
-        , onSubmit = onSubmit
-        , onCancel = onCancel
+        , submit = submit
+        , cancel = cancel
         , negativeReasons = negativeReasons
+        , state = state
+        , selectPositive = selectPositive
+        , selectNegative = selectNegative
+        , chooseReason = chooseReason
         }
 
 
@@ -60,8 +69,8 @@ init =
     Unselected
 
 
-buttonPositive : State -> (State -> msg) -> Html msg
-buttonPositive state onStateChange =
+buttonPositive : { r | selectPositive : msg } -> State -> Html msg
+buttonPositive { selectPositive } state =
     let
         btnClass =
             case state of
@@ -71,11 +80,11 @@ buttonPositive state onStateChange =
                 _ ->
                     ""
     in
-    button [ class btnClass, E.onClick (onStateChange PositiveSelected) ] [ text "Yes" ]
+        button [ class btnClass, E.onClick selectPositive ] [ text "Yes" ]
 
 
-buttonNegative : State -> (State -> msg) -> Html msg
-buttonNegative state onStateChange =
+buttonNegative : { r | selectNegative : msg } -> State -> Html msg
+buttonNegative { selectNegative } state =
     let
         btnClass =
             case state of
@@ -90,22 +99,8 @@ buttonNegative state onStateChange =
 
                 SelectingNegative ->
                     "selected"
-
-        nextState =
-            case state of
-                PositiveSelected ->
-                    SelectingNegative
-
-                Unselected ->
-                    SelectingNegative
-
-                NegativeSelected reason ->
-                    NegativeSelected reason
-
-                SelectingNegative ->
-                    SelectingNegative
     in
-    button [ class btnClass, E.onClick (onStateChange nextState) ] [ text "No" ]
+        button [ class btnClass, E.onClick selectNegative ] [ text "No" ]
 
 
 getReason : State -> Maybe Reason
@@ -118,28 +113,25 @@ getReason state =
             Nothing
 
 
-radio : (State -> stateChangeMsg) -> Maybe Reason -> Reason -> Html stateChangeMsg
-radio onStateChange maybeSelectedReason reason =
+radio : (Reason -> msg) -> Maybe Reason -> Reason -> Html msg
+radio chooseReason maybeSelectedReason reason =
     let
-        isChecked =
+        isSelected =
             case maybeSelectedReason of
                 Just selectedReason ->
                     selectedReason == reason
 
                 Nothing ->
                     False
-
-        nextState =
-            NegativeSelected reason
     in
-    label [ class "feedback__reasons__label" ]
-        [ input [ type_ "radio", checked isChecked, E.onClick (onStateChange nextState) ] []
-        , text reason
-        ]
+        label [ class "feedback__reasons__label" ]
+            [ input [ type_ "radio", checked isSelected, E.onClick (chooseReason reason) ] []
+            , text reason
+            ]
 
 
-maybeReasons : State -> (State -> stateChangeMsg) -> List Reason -> Html stateChangeMsg
-maybeReasons state onStateChange negReasons =
+maybeReasons : { r | chooseReason : Reason -> msg } -> State -> List Reason -> Html msg
+maybeReasons { chooseReason } state negReasons =
     case state of
         PositiveSelected ->
             text ""
@@ -151,7 +143,7 @@ maybeReasons state onStateChange negReasons =
             div [ class "feedback__reasons" ]
                 (List.map
                     (\reason ->
-                        radio onStateChange (getReason state) reason
+                        radio chooseReason (getReason state) reason
                     )
                     negReasons
                 )
@@ -183,8 +175,8 @@ createSubmission state =
             Just (Negative reason)
 
 
-submitCancel : State -> (State -> msg) -> (Submission -> msg) -> msg -> Html msg
-submitCancel state onStateChange onSubmission onCancel =
+submitCancel : { r | cancel : msg, submit : Submission -> msg } -> State -> Html msg
+submitCancel { submit, cancel } state =
     let
         maybeSubmission =
             createSubmission state
@@ -192,26 +184,26 @@ submitCancel state onStateChange onSubmission onCancel =
         submitBtnAttrs =
             case maybeSubmission of
                 Just submission ->
-                    [ E.onClick (onSubmission submission) ]
+                    [ E.onClick (submit submission) ]
 
                 Nothing ->
                     [ disabled True ]
     in
-    div [ class "feedback-submit" ]
-        [ button [ E.onClick onCancel ] [ text "Cancel" ]
-        , button submitBtnAttrs [ text "Submit" ]
-        ]
+        div [ class "feedback-submit" ]
+            [ button [ E.onClick cancel ] [ text "Cancel" ]
+            , button submitBtnAttrs [ text "Submit" ]
+            ]
 
 
-view : Config msg -> State -> Html msg
-view (Config { id, prompt, footnote, onStateChange, onSubmit, onCancel, negativeReasons }) state =
+view : Config msg -> Html msg
+view (Config ({ id, prompt, footnote, submit, cancel, negativeReasons, state } as config)) =
     div [ class "feedback" ]
         [ div [ class "feedback__prompt" ] [ text prompt ]
         , div [ class "feedback__inclination" ]
-            [ buttonPositive state onStateChange
-            , buttonNegative state onStateChange
+            [ buttonPositive config state
+            , buttonNegative config state
             ]
-        , maybeReasons state onStateChange negativeReasons
+        , maybeReasons config state negativeReasons
         , maybeFootnote footnote
-        , submitCancel state onStateChange onSubmit onCancel
+        , submitCancel config state
         ]
