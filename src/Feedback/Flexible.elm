@@ -109,17 +109,13 @@ getReason state =
 
 radio : (Reason -> msg) -> Maybe Reason -> Reason -> Html msg
 radio chooseReason maybeSelectedReason reason =
-    let
-        isSelected =
-            case maybeSelectedReason of
-                Just selectedReason ->
-                    selectedReason == reason
-
-                Nothing ->
-                    False
-    in
     label [ class "feedback__reasons__label" ]
-        [ input [ type_ "radio", checked isSelected, E.onClick (chooseReason reason) ] []
+        [ input
+            [ type_ "radio"
+            , checked (maybeSelectedReason == Just reason)
+            , E.onClick (chooseReason reason)
+            ]
+            []
         , text reason
         ]
 
