@@ -26,16 +26,8 @@ config :
     , negativeReasons : List Reason
     }
     -> Config msg
-config { id, prompt, footnote, onStateChange, submit, cancel, negativeReasons } =
+config =
     Config
-        { id = id
-        , prompt = prompt
-        , footnote = footnote
-        , onStateChange = onStateChange
-        , submit = submit
-        , cancel = cancel
-        , negativeReasons = negativeReasons
-        }
 
 
 type alias Reason =

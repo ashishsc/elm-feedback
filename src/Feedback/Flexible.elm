@@ -33,19 +33,8 @@ config :
     , state : State
     }
     -> Config msg
-config { id, prompt, footnote, submit, cancel, negativeReasons, state, selectPositive, selectNegative, chooseReason } =
+config =
     Config
-        { id = id
-        , prompt = prompt
-        , footnote = footnote
-        , submit = submit
-        , cancel = cancel
-        , negativeReasons = negativeReasons
-        , state = state
-        , selectPositive = selectPositive
-        , selectNegative = selectNegative
-        , chooseReason = chooseReason
-        }
 
 
 type alias Reason =
