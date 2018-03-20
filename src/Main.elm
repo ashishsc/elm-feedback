@@ -37,8 +37,8 @@ feedbackConfig =
         , prompt = "Did you like the pandas?"
         , footnote = Just "Your feedback of the pandas will not be shared with the pandas"
         , onStateChange = FeedbackUpdated
-        , onSubmit = FeedbackSubmitted
-        , onCancel = FeedbackCancelled
+        , submit = FeedbackSubmitted
+        , cancel = FeedbackCancelled
         , negativeReasons = [ "Too many pandas", "Not enough pandas" ]
         }
 
